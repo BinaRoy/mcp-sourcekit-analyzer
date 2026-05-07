@@ -148,20 +148,25 @@ Recommended pattern:
 
 ## App Root vs Module Root
 
-Prefer `module-root` whenever the file belongs to `Modules/*`:
-- More stable SourceKit-LSP results
-- Cleaner SwiftPM build context
-- Better fit for on-demand symbol resolution
+The server supports two Swift semantic routing modes.
 
-Use `app-root` only when you need app-target context:
-- `Wallet/*.swift`
-- Xcode-target-only files
-- app wiring and composition code
+`module-root`
+- Used for files under `Modules/*`
+- Routes to the nearest `Package.swift` root
+- Best choice for SwiftPM package code and semantic-heavy workflows
+- Usually provides the most stable `hover`, `definition`, and `diagnostics` results
 
-If `app-root` semantic results are unstable:
-- keep the request
-- inspect `source` and `limitations`
-- retry from a package file when the same symbol also exists in `Modules/*`
+`app-root`
+- Used for app-target files such as `Wallet/*.swift`
+- Routes to the repository / build-server root
+- Use when you need app composition, app wiring, or Xcode-target context
+- Semantic quality depends on the app build-server and indexing state
+
+Agent guidance:
+- Choose `module-root` when the task is about package code and a module file is available
+- Choose `app-root` when the task is specifically about app-target code or app-level composition
+- Always inspect `source`, `routing`, and `limitations` in the response
+- If app-root semantic results are weak, empty, or unstable, prefer a module-root path when the same symbol can be analyzed from `Modules/*`
 
 ## Response Semantics
 
