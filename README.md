@@ -145,6 +145,9 @@ Recommended pattern:
 - Do lightweight project analysis first
 - Use semantic tools lazily, driven by the current symbol under work
 - Do not precompute `hover` / `definition` / `references` for every symbol in a medium or large repository
+- For repository translation workflows, treat `get_directory_tree` and `get_file_structure` as the planning/indexing tools, then call `hover`, `definition`, `references`, and `diagnostics` only for the files and symbols being translated or validated.
+- This follows the ReCodeAgent-style tool pattern: project-analysis tools provide compact structure for planning, while LSP tools are used selectively for type information, navigation, and validation rather than as a mandatory full-repository scan.
+- If a full structural inventory is needed, prefer `run_analysis.py --no-lsp` first, then run targeted LSP queries on high-value modules or symbols.
 
 ## App Root vs Module Root
 
@@ -201,6 +204,26 @@ If the server starts but no semantic results appear:
 If app-root behavior is weaker than module-root behavior:
 - this is a known public v1 limitation
 - keep using `module-root` for semantic-heavy workflows
+
+## Known Runtime Behavior
+
+Observed on the EUDI iOS wallet repository (`eudi-app-ios-wallet-ui`, revision `4fce3dd6`):
+
+- The MCP stdio layer can initialize, list tools, and serve `tools/call` requests normally.
+- `sourcekit-lsp` was available at `/usr/bin/sourcekit-lsp`.
+- Single-point semantic calls on `Modules/*` files worked with `source = swift-lsp`; verified tools included `get_file_structure`, `hover`, `diagnostics`, and `definition`.
+- A `module-root` query for `Modules/feature-common/Sources/Interactor/BiometryInteractor.swift` routed to `Modules/feature-common` and returned stable Swift LSP results.
+- A limited batch run over 25 files with diagnostics and selected symbols completed successfully, but some batched `definition`/document-symbol requests timed out and fell back to structural/text results.
+- A full structural run with LSP disabled completed quickly and produced a useful repository inventory, making it the better first step for translation planning.
+- The repository root did not contain `buildServer.json`, so app-root/Xcode-target semantic quality should be treated as best-effort unless a valid build server configuration is provided.
+
+Practical guidance:
+
+- Prefer `Modules/*` paths when checking SwiftPM package code.
+- Inspect `source`, `routing`, `lsp_root`, and `limitations` on every semantic response before trusting it as LSP-backed.
+- Do not interpret fallback output as failure; it is useful for structure and snippets, but less authoritative than `source = swift-lsp` for type-driven translation decisions.
+- Avoid full-repository `hover`, `definition`, or `references` precomputation. Use them as on-demand tools for the symbol currently being translated, refactored, or validated.
+- Run `diagnostics` after edits or generated translation output, not necessarily before every analysis step.
 
 ## Notes
 
